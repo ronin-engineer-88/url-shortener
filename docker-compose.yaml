@@ -1,0 +1,8 @@
+version: "3.8"
+name: zookeeper
+services:
+  zookeeper:
+    image: zookeeper:3.9
+    ports:
+      - "2181:2181"
+    container_name: zookeeper_3.9
