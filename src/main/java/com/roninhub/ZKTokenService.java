@@ -18,26 +18,29 @@ public class ZKTokenService implements TokenService {
         // Atomically increment range counter in Zookeeper
         String counterPath = RANGE_NODE + "/counter";
 
-        // Ensure parent node exists
+        // 1.1. Ensure parent node exists
         if (zooKeeper.exists(RANGE_NODE, false) == null) {
             zooKeeper.create(RANGE_NODE, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
 
-        // Ensure counter node exists
+        // 1.2. Ensure counter node exists
         if (zooKeeper.exists(counterPath, false) == null) {
             zooKeeper.create(counterPath, "0".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
 
-        // Atomically fetch and increment the counter
-        byte[] currentData = zooKeeper.getData(counterPath, false, null);
-        long currentRange = Long.parseLong(new String(currentData));
-        long newRange = currentRange + 1;
+        // 2. Atomically fetch and increment the counter
+        byte[] currentValue = zooKeeper.getData(counterPath, false, null);
+        long currentRangeCounter = Long.parseLong(new String(currentValue));
+        long newRangeCounter = currentRangeCounter + 1;
+        // The counter should be sequential and small. We don't need to set the range number.
 
-        // Update counter in Zookeeper
-        zooKeeper.setData(counterPath, String.valueOf(newRange).getBytes(), -1); // version -1 for new value
-        // After this, ZK increase version (=0)
+        // 3. Update counter in Zookeeper
+        zooKeeper.setData(counterPath, String.valueOf(newRangeCounter).getBytes(), -1); // version -1 for new value
+        // After this, ZK increase version (= 0) if this operation is executed successfully.
+        // TODO: if it failed, retry from step 2
 
-        long start = currentRange * RANGE_SIZE;
+        // 4. Create a range from the acquired counter
+        long start = currentRangeCounter * RANGE_SIZE;
         long end = start + RANGE_SIZE - 1;
 
         System.out.printf("Fetched a token range: %d - %d\n", start, end);
